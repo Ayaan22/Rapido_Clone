@@ -1,4 +1,11 @@
-import {StyleSheet, Text, TextInput, View} from 'react-native';
+import {
+  Dimensions,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import React, {useEffect, useState, useRef} from 'react';
 import MapView, {PROVIDER_GOOGLE, Marker} from 'react-native-maps';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -7,7 +14,17 @@ import GetLocation from 'react-native-get-location';
 import axios from 'axios';
 import {apiKey} from '../utils/apiKey';
 
-const Home = () => {
+const Home = ({navigation, route}) => {
+  const destination = route?.params?.details;
+  const geometry = destination?.geometry;
+  const location = geometry?.location;
+  const latitude = location?.lat;
+  const longitude = location?.lng;
+
+  const formatted_address = destination?.formatted_address;
+
+  console.log(latitude, longitude, formatted_address, '--from home');
+
   const mapRef = useRef();
   const [userLocation, setuserLocation] = useState({
     latitude: 37.78825,
@@ -23,6 +40,7 @@ const Home = () => {
         maximumAge: 10000,
       })
         .then(async location => {
+        
           setuserLocation({
             latitude: location.latitude,
             longitude: location.longitude,
@@ -40,6 +58,7 @@ const Home = () => {
           const {data} =
             await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.latitude},${location.longitude}&key=${apiKey}
           `);
+          console.log(data.results[0].formatted_address,'--from current location');
           setorigin(data.results[0].formatted_address);
         })
         .catch(error => {
@@ -49,6 +68,23 @@ const Home = () => {
     };
     getLocation();
   }, []);
+
+  useEffect(() => {
+    if (latitude && longitude) {
+      const coordinates = [
+        {latitude: userLocation.latitude, longitude: userLocation.longitude},
+        {
+          latitude: latitude,
+          longitude: longitude,
+        },
+      ];
+
+      mapRef.current.fitToCoordinates(coordinates, {
+        edgePadding: {top: 50, right: 50, bottom: 50, left: 50},
+        animated: true,
+      });
+    }
+  }, [latitude, longitude, userLocation]);
 
   return (
     <View style={{flex: 1, backgroundColor: 'white'}}>
@@ -72,6 +108,16 @@ const Home = () => {
               longitude: userLocation?.longitude,
             }}
           />
+
+          {longitude && latitude && (
+            <Marker
+              coordinate={{
+                latitude: latitude,
+                longitude: longitude,
+              }}
+              pinColor="green"
+            />
+          )}
         </MapView>
         {/* ////Menu box//// */}
 
@@ -130,7 +176,8 @@ const Home = () => {
             flex: 1,
             borderRadius: 25,
           }}>
-          <View
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Destination')}
             style={{
               backgroundColor: 'white',
               margin: 10,
@@ -142,11 +189,13 @@ const Home = () => {
             }}>
             <Ionicons name="search" color="black" size={25} />
             <TextInput
-              value=""
+              style={{flex: 1, color: 'black'}}
+              value={formatted_address}
               placeholder="Where are you going ?"
               placeholderTextColor={'grey'}
+              editable={false}
             />
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
